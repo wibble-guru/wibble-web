@@ -9,12 +9,13 @@ import { CategorySchema, TestDetailSchema, TestResultSchema, TestSummarySchema, 
  * 페이지가 쓰는 데이터 함수. 전부 "use cache"로 캐시되고, 태그로 즉시 무효화할 수 있다.
  * 서버에서 데이터가 바뀌면 POST /api/revalidate 로 아래 태그를 알려주면 된다 (docs/api.md).
  *
- * 빌드할 때는 홈·목록 화면을 미리 렌더링하면서 API를 부른다. WIBBLE_API_URL이 없는 빌드 환경에서는
- * 미리 렌더링을 건너뛰고(connection) 실제 요청 때 불러오게 해서 빌드가 멈추지 않게 한다.
- * 실행할 때도 주소가 없으면 그때 ApiConfigError로 오류 화면이 나온다.
+ * 빌드할 때는 API를 부르지 않는다. 빌드 서버에서는 API에 닿지 않을 수 있고(주소 없음, 아직 안 뜸,
+ * Railway 같은 곳의 내부 네트워크), 그 때문에 배포가 멈추면 안 되기 때문이다.
+ * 대신 connection()으로 미리 렌더링을 건너뛰고 실제 요청 때 불러와 캐시한다 (화면 틀은 그대로 미리 만들어진다).
+ * 실행할 때 주소가 없거나 연결이 안 되면 그때 오류 화면이 나온다.
  */
-async function whenConfigured() {
-  if (!process.env.WIBBLE_API_URL) await connection();
+async function requestTimeOnlyDuringBuild() {
+  if (process.env.NEXT_PHASE === "phase-production-build" || !process.env.WIBBLE_API_URL) await connection();
 }
 export const cacheTags = {
   categories: "categories",
@@ -33,7 +34,7 @@ export type TestListQuery = {
 };
 
 export async function getCategories() {
-  await whenConfigured();
+  await requestTimeOnlyDuringBuild();
   return cachedGetCategories();
 }
 
@@ -46,7 +47,7 @@ async function cachedGetCategories() {
 }
 
 export async function getTests(query: TestListQuery = {}) {
-  await whenConfigured();
+  await requestTimeOnlyDuringBuild();
   return cachedGetTests(query);
 }
 
@@ -64,7 +65,7 @@ async function cachedGetTests(query: TestListQuery = {}) {
 }
 
 export async function searchTests(q: string, limit = 30) {
-  await whenConfigured();
+  await requestTimeOnlyDuringBuild();
   return cachedSearchTests(q, limit);
 }
 
@@ -79,7 +80,7 @@ async function cachedSearchTests(q: string, limit = 30) {
 }
 
 export async function getTest(slug: string) {
-  await whenConfigured();
+  await requestTimeOnlyDuringBuild();
   return cachedGetTest(slug);
 }
 
@@ -92,7 +93,7 @@ async function cachedGetTest(slug: string) {
 }
 
 export async function getResult(slug: string, resultId: string) {
-  await whenConfigured();
+  await requestTimeOnlyDuringBuild();
   return cachedGetResult(slug, resultId);
 }
 
@@ -105,7 +106,7 @@ async function cachedGetResult(slug: string, resultId: string) {
 }
 
 export async function getRecommendations(slug: string, limit = 4) {
-  await whenConfigured();
+  await requestTimeOnlyDuringBuild();
   return cachedGetRecommendations(slug, limit);
 }
 
