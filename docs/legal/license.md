@@ -12,7 +12,7 @@ Wibble은 아래 글꼴과 소프트웨어를 사용합니다. 각 저작물의 
 - **Gowun Dodum**, **Gowun Batang** — Yanghee Ryu · SIL Open Font License 1.1
 - **Black Han Sans** — Zess Type · SIL Open Font License 1.1
 - **Black And White Picture** — AsiaSoft · SIL Open Font License 1.1
-- **EF_watermelonSalad (수박화체)** — Earlyfont · [사용 범위 확인 후 라이선스 이름을 적어 주세요]
+- **EF_watermelonSalad (수박화체)** — Earlyfont · 무료 폰트 (라이선스 프리)
 
 SIL Open Font License 1.1 전문: [openfontlicense.org](https://openfontlicense.org)
 
