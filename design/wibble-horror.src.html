@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Wibble horror examples</title>
+<style>
+  :root {
+    /* site (light) */
+    --bg: #f3f8ff; --surface: #ffffff; --blue-50: #eaf4ff; --blue-100: #d6eaff; --blue-600: #1d6fc7; --primary: #1f73cc;
+    --ink: #1d2b45; --ink-2: #4a5a73; --ink-3: #617088; --line: #e3edf8;
+    --sky: #cfe7ff; --pink: #ffdce8; --lemon: #fff1c2; --mint: #d3f5e6; --kakao: #fee500;
+    /* horror (inside the game iframe + horror result visual) */
+    --night-950: #0b0d17; --night-900: #121527; --night-800: #1b1f36; --night-700: #262b48;
+    --mist: #eceef7; --mist-2: #b3b9d1; --mist-3: #8b93b3;
+    --blood: #c9363f; --blood-soft: #ff8a8f; --ember: #e5484d; --candle: #ffc46b;
+    --font: "Noto Sans KR", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #dfe7f1; font-family: var(--font); color: var(--ink); padding: 40px; display: flex; flex-direction: column; gap: 80px; align-items: flex-start; word-break: keep-all; }
+  svg { display: block; flex-shrink: 0; }
+  .artboard { background: var(--bg); overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  .m { width: 390px; height: 844px; }
+  .pc { width: 1440px; }
+  .b { font-weight: 700; letter-spacing: -0.025em; }
+
+  /* ---------- site atoms ---------- */
+  .m-header { height: 60px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 12px; background: var(--surface); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(29, 43, 69, 0.06); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 52px; padding: 0 24px; border-radius: 12px; font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-ink { background: var(--ink); color: #fff; }
+  .btn-soft { background: var(--blue-50); color: var(--blue-600); }
+  .ctl { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 18px 0 16px; border-radius: 12px; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .panel { background: var(--surface); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .meta { display: flex; align-items: center; gap: 4px; color: var(--ink-3); font-size: 12px; font-weight: 500; }
+  .badge-horror { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 6px; background: var(--night-800); color: #fff; font-size: 12px; font-weight: 700; }
+  .badge-new { height: 22px; padding: 0 8px; border-radius: 6px; background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; }
+  .warn-chip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 6px; background: #fff3d6; color: #7a4b00; font-size: 12px; font-weight: 700; }
+
+  .thumb { position: relative; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+  .thumb .gloss { position: absolute; right: 14%; top: 10%; width: 26%; height: 9%; border-radius: 999px; background: rgba(255, 255, 255, 0.7); transform: rotate(24deg); }
+  .thumb.dark { background: radial-gradient(circle at 70% 20%, rgba(255, 196, 107, 0.35) 0%, rgba(255, 196, 107, 0) 45%), var(--night-900); }
+  .thumb.dark .gloss { background: rgba(255, 255, 255, 0.12); }
+  .thumb .tl { position: absolute; top: 10px; left: 10px; display: flex; gap: 4px; }
+  .card { display: flex; flex-direction: column; gap: 8px; }
+  .card-title { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.35; }
+  .rank-row { display: flex; align-items: center; gap: 14px; padding: 12px; background: var(--surface); border-radius: 12px; }
+  .rank-row .info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .rank-no { width: 22px; text-align: center; font-size: 22px; font-weight: 700; color: var(--primary); }
+
+  .share-row { display: flex; gap: 28px; }
+  .share { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+  .share .sq { width: 60px; height: 60px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+
+  /* ---------- PC chrome ---------- */
+  .pc-nav { height: 76px; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
+  .pc-nav .inner { width: 1200px; display: flex; align-items: center; gap: 40px; }
+  .pc-nav .links { display: flex; gap: 28px; flex: 1; }
+  .pc-nav .links span { font-size: 18px; font-weight: 700; color: var(--ink-2); letter-spacing: -0.02em; }
+  .pc-nav .links span.on { color: var(--primary); }
+  .search { width: 280px; height: 44px; border-radius: 12px; background: var(--bg); display: flex; align-items: center; gap: 8px; padding: 0 18px; color: var(--ink-3); font-size: 14px; }
+  .container { width: 1200px; margin: 0 auto; }
+
+  /* ---------- horror game (iframe content) ---------- */
+  .h-stage { position: relative; overflow: hidden; background: radial-gradient(circle at 82% 12%, rgba(255, 196, 107, 0.16) 0%, rgba(255, 196, 107, 0) 38%), radial-gradient(circle at 10% 100%, rgba(201, 54, 63, 0.18) 0%, rgba(201, 54, 63, 0) 40%), var(--night-950); }
+  .moon { position: absolute; border-radius: 999px; background: rgba(255, 255, 255, 0.035); }
+  .h-card { position: relative; background: var(--night-900); border: 1px solid var(--night-700); border-radius: 16px; display: flex; flex-direction: column; gap: 14px; color: var(--mist); }
+  .h-top { display: flex; justify-content: space-between; align-items: center; }
+  .h-q { font-size: 16px; font-weight: 700; color: var(--blood-soft); }
+  .h-count { font-size: 13px; font-weight: 700; color: var(--mist-3); }
+  .h-progress { height: 8px; border-radius: 4px; background: var(--night-700); overflow: hidden; }
+  .h-progress i { display: block; height: 100%; width: 33%; border-radius: 4px; background: var(--ember); }
+  .candle { border-radius: 999px; background: var(--night-800); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px var(--night-700), 0 14px 28px rgba(0, 0, 0, 0.35); }
+  .h-question { font-weight: 700; letter-spacing: -0.025em; line-height: 1.4; color: var(--mist); text-align: center; }
+  .h-sub { font-size: 14px; color: var(--mist-2); text-align: center; line-height: 1.6; }
+  .h-opt { height: 60px; border-radius: 12px; background: var(--night-800); border: 1px solid var(--night-700); display: flex; align-items: center; padding: 0 20px; font-size: 16px; font-weight: 500; color: var(--mist); }
+  .h-opt.sel { background: var(--blood); border-color: var(--blood); color: #fff; }
+
+  /* ---------- warning sheet ---------- */
+  .dim { position: absolute; inset: 0; background: rgba(11, 13, 23, 0.55); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 16px 16px 0 0; padding: 12px 20px 28px; display: flex; flex-direction: column; gap: 16px; }
+  .handle { width: 40px; height: 4px; border-radius: 4px; background: var(--line); align-self: center; }
+
+  /* ---------- horror result card ---------- */
+  .hr-card { background-color: var(--night-900); background-image: radial-gradient(circle at 50% 0%, rgba(255, 196, 107, 0.2) 0%, rgba(255, 196, 107, 0) 55%); border-radius: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 28px 22px 24px; gap: 14px; color: var(--mist); }
+  .hr-hash { height: 30px; padding: 0 12px; border-radius: 6px; background: var(--night-800); color: #ffb3b6; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; }
+  .hr-box { flex: 1; background: var(--night-800); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+  /* ---------- examples board ---------- */
+  .board { width: 920px; background: var(--surface); padding: 48px; gap: 32px; }
+  .note { font-size: 13px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+
+<!-- ============ 1. 목록 카드 예시 ============ -->
+<section class="artboard board" data-name="Card / 일반 vs 공포">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <p class="b" style="font-size:24px">목록에서 공포 테스트 표시</p>
+    <p class="note">썸네일만 어둡게 + "공포" 배지. 목록 화면 자체는 평소 톤을 유지해요.</p>
+  </div>
+  <div style="display:flex;gap:24px;align-items:flex-start">
+    <div class="card" style="width:160px">
+      <div class="thumb" style="width:160px;height:200px;background:var(--sky)"><span class="gloss"></span><span class="tl"><span class="badge-new">NEW</span></span><span style="font-size:64px;line-height:1">🐾</span></div>
+      <p class="card-title">나와 닮은 동물 찾기</p>
+      <span class="meta">{{PLAY}} 2.4만</span>
+    </div>
+    <div class="card" style="width:160px">
+      <div class="thumb dark" style="width:160px;height:200px"><span class="gloss"></span><span class="tl"><span class="badge-horror">👻 공포</span></span><span style="font-size:64px;line-height:1">🕯️</span></div>
+      <p class="card-title">새벽 3시의 방문자</p>
+      <span class="meta">{{PLAY}} 3.1만</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:10px;background:var(--bg);padding:16px;border-radius:16px">
+      <div class="rank-row"><span class="rank-no">1</span><div class="thumb" style="width:60px;height:60px;background:var(--sky)"><span class="gloss"></span><span style="font-size:30px;line-height:1">🐾</span></div><div class="info"><p class="card-title">나와 닮은 동물 찾기</p><span class="meta">{{PLAY}} 2.4만</span></div>{{CHEV}}</div>
+      <div class="rank-row"><span class="rank-no">2</span><div class="thumb dark" style="width:60px;height:60px"><span class="gloss"></span><span style="font-size:30px;line-height:1">🕯️</span></div><div class="info"><div style="display:flex;align-items:center;gap:6px"><p class="card-title">새벽 3시의 방문자</p><span class="badge-horror" style="height:20px;font-size:11px;padding:0 6px">공포</span></div><span class="meta">{{PLAY}} 3.1만</span></div>{{CHEV}}</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. 시작 전 경고 (모바일) ============ -->
+<section class="artboard m" data-name="Horror / 시작 전 경고 / Mobile 390">
+  <header class="m-header">
+    <div class="icon-btn">{{BACK}}</div>
+    <span class="b" style="font-size:18px">새벽 3시의 방문자</span>
+    <div class="icon-btn">{{SHARE}}</div>
+  </header>
+  <div class="h-stage" style="margin:4px 12px 12px;flex:1;border-radius:16px"></div>
+  <div class="dim"></div>
+  <div class="sheet">
+    <span class="handle"></span>
+    <div style="width:56px;height:56px;border-radius:16px;background:#fff3d6;display:flex;align-items:center;justify-content:center;font-size:28px">🕯️</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <p class="b" style="font-size:22px">조금 무서운 테스트예요</p>
+      <p style="font-size:15px;line-height:1.6;color:var(--ink-2)">어두운 분위기와 갑자기 놀라는 장면이 있어요.<br/>무서운 걸 잘 못 본다면 다른 테스트를 추천해요.</p>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <span class="warn-chip">😱 깜짝 놀라는 장면</span>
+      <span class="warn-chip">🔊 효과음</span>
+      <span class="warn-chip">🌙 어두운 화면</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+      <span class="btn btn-ink" style="width:100%">그래도 할래요</span>
+      <span class="btn btn-soft" style="width:100%">다른 테스트 볼래요</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. 공포 테스트 (모바일) ============ -->
+<section class="artboard m" data-name="Horror / Test / Mobile 390">
+  <header class="m-header">
+    <div class="icon-btn">{{BACK}}</div>
+    <span class="b" style="font-size:18px">새벽 3시의 방문자</span>
+    <div class="icon-btn">{{SHARE}}</div>
+  </header>
+  <div class="h-stage" style="margin:4px 12px 12px;flex:1;border-radius:16px;display:flex">
+    <div class="moon" style="width:200px;height:200px;right:-60px;top:-60px"></div>
+    <div class="h-card" style="flex:1;margin:0;border:none;background:transparent;padding:24px 20px">
+      <div class="h-top"><span class="h-q">Q1</span><span class="h-count">1 / 3</span></div>
+      <div class="h-progress"><i></i></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px">
+        <div class="candle" style="width:108px;height:108px"><span style="font-size:52px;line-height:1">🚪</span></div>
+        <p class="h-question" style="font-size:24px">새벽 3시, 누군가<br/>현관문을 세 번 두드려요</p>
+        <p class="h-sub">똑. 똑. 똑.<br/>인터폰 화면에는 아무도 보이지 않아요.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span class="h-opt">조심스럽게 문을 연다</span>
+        <span class="h-opt sel">숨죽이고 인기척을 듣는다</span>
+        <span class="h-opt">불을 모두 켜고 소리친다</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. 공포 테스트 (PC 16:9) ============ -->
+<section class="artboard pc" data-name="Horror / Test / PC 1440">
+  <nav class="pc-nav"><div class="inner">
+    <img src="{{LOGO}}" alt="Wibble" style="height:38px" />
+    <div class="links"><span>홈</span><span class="on">전체 테스트</span><span>인기</span></div>
+    <div class="search">{{SEARCH}}테스트 검색</div>
+  </div></nav>
+  <div class="container" style="display:flex;flex-direction:column;gap:24px;margin-top:40px;margin-bottom:80px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="h-stage" style="width:1200px;height:675px;border-radius:20px;display:flex;align-items:center;justify-content:center">
+        <div class="moon" style="width:340px;height:340px;right:-90px;top:-120px"></div>
+        <div class="moon" style="width:160px;height:160px;left:-40px;bottom:-50px"></div>
+        <div class="h-card" style="width:1040px;height:539px;padding:32px 40px;gap:16px">
+          <div class="h-top"><span class="h-q">Q1</span><span class="h-count">1 / 3</span></div>
+          <div class="h-progress"><i></i></div>
+          <div style="flex:1;display:flex;align-items:center;gap:48px">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:22px">
+              <div class="candle" style="width:120px;height:120px"><span style="font-size:58px;line-height:1">🚪</span></div>
+              <p class="h-question" style="font-size:28px">새벽 3시, 누군가<br/>현관문을 세 번 두드려요</p>
+              <p class="h-sub">똑. 똑. 똑. 인터폰 화면에는 아무도 보이지 않아요.</p>
+            </div>
+            <div style="width:440px;display:flex;flex-direction:column;gap:10px">
+              <span class="h-opt">조심스럽게 문을 연다</span>
+              <span class="h-opt sel">숨죽이고 인기척을 듣는다</span>
+              <span class="h-opt">불을 모두 켜고 소리친다</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;font-weight:500;color:var(--ink-3)">🔊 효과음이 있어요 · 전체화면에서는 ESC를 눌러 나올 수 있어요</span>
+        <div style="display:flex;gap:8px">
+          <span class="ctl" style="background:var(--blue-50);color:var(--blue-600)">{{RESTART}}처음부터</span>
+          <span class="ctl" style="background:var(--primary);color:#fff">{{FULL}}전체화면</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:20px;align-items:flex-start">
+      <div class="panel" style="flex:1;padding:32px">
+        <div class="thumb dark" style="width:88px;height:88px;border-radius:16px"><span class="gloss"></span><span style="font-size:44px;line-height:1">🕯️</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><p class="b" style="font-size:32px">새벽 3시의 방문자</p><span class="badge-horror">👻 공포</span></div>
+        <p style="font-size:16px;line-height:1.6;color:var(--ink-2)">문 너머의 누군가에게 어떻게 반응하느냐로 알아보는<br/>나의 생존 유형. 불은 켜고 하는 걸 추천해요.</p>
+        <div class="meta" style="font-size:14px">{{PLAY}} 3.1만 명 참여 · 약 2분</div>
+        <div style="display:flex;gap:6px"><span class="warn-chip">😱 깜짝 놀라는 장면</span><span class="warn-chip">🔊 효과음</span></div>
+        <div style="height:1px;background:var(--line);margin:4px 0"></div>
+        <p style="font-size:14px;font-weight:700;color:var(--ink-2)">친구에게 공유하기</p>
+        <div class="share-row">{{SHARE_BTNS}}</div>
+      </div>
+      <div class="panel" style="flex:1">
+        <span class="b" style="font-size:20px">이런 테스트는 어때요?</span>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="rank-row" style="background:var(--bg)"><div class="thumb dark" style="width:56px;height:56px"><span class="gloss"></span><span style="font-size:28px;line-height:1">👻</span></div><div class="info"><div style="display:flex;align-items:center;gap:6px"><p class="card-title">폐교에서 하룻밤</p><span class="badge-horror" style="height:20px;font-size:11px;padding:0 6px">공포</span></div><span class="meta">{{PLAY}} 1.2만</span></div>{{CHEV}}</div>
+          <div class="rank-row" style="background:var(--bg)"><div class="thumb" style="width:56px;height:56px;background:var(--pink)"><span class="gloss"></span><span style="font-size:28px;line-height:1">💌</span></div><div class="info"><p class="card-title">나의 연애 온도는?</p><span class="meta">{{PLAY}} 1.8만</span></div>{{CHEV}}</div>
+          <div class="rank-row" style="background:var(--bg)"><div class="thumb" style="width:56px;height:56px;background:var(--mint)"><span class="gloss"></span><span style="font-size:28px;line-height:1">🌿</span></div><div class="info"><p class="card-title">내 마음의 휴식처</p><span class="meta">{{PLAY}} 7,410</span></div>{{CHEV}}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. 공포 결과 (모바일) ============ -->
+<section class="artboard m" data-name="Horror / Result / Mobile 390" style="height:auto">
+  <header class="m-header">
+    <div class="icon-btn">{{HOME}}</div>
+    <span class="b" style="font-size:18px">테스트 결과</span>
+    <div style="width:40px"></div>
+  </header>
+  <div style="padding:4px 16px 40px;display:flex;flex-direction:column;gap:16px">
+    <div class="hr-card">
+      <p style="font-size:14px;font-weight:700;color:var(--mist-2)">새벽 3시, 당신은</p>
+      <div class="candle" style="width:128px;height:128px"><span style="font-size:64px;line-height:1">🕯️</span></div>
+      <p class="b" style="font-size:28px;color:var(--mist)">끝까지 살아남는 생존자</p>
+      <p style="font-size:15px;line-height:1.65;color:var(--mist-2)">겁은 많지만 침착함을 잃지 않아요.<br/>공포 영화라면 마지막까지 남는 사람.</p>
+      <div style="display:flex;gap:6px;justify-content:center"><span class="hr-hash">#침착함</span><span class="hr-hash">#촉이좋음</span><span class="hr-hash">#생존본능</span></div>
+      <div style="display:flex;gap:10px;width:100%;margin-top:4px">
+        <div class="hr-box"><span style="font-size:12px;font-weight:700;color:var(--mist-3)">함께하면 든든한 유형</span><span class="b" style="font-size:17px">🔦 탐험가</span></div>
+        <div class="hr-box"><span style="font-size:12px;font-weight:700;color:var(--mist-3)">같이 있으면 위험한 유형</span><span class="b" style="font-size:17px">🚪 문 여는 사람</span></div>
+      </div>
+    </div>
+    <div class="panel" style="align-items:center">
+      <p style="font-size:14px;font-weight:700;color:var(--ink-2)">친구에게 공유하기</p>
+      <div class="share-row">{{SHARE_BTNS}}</div>
+    </div>
+    <span class="btn btn-primary" style="width:100%">나도 테스트하기 · 다시하기</span>
+  </div>
+</section>
+
+</body>
+</html>

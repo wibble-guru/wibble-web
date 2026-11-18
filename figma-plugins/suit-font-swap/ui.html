@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: var(--figma-color-bg, #fff);
+    --bg2: var(--figma-color-bg-secondary, #f5f5f5);
+    --text: var(--figma-color-text, #1e1e1e);
+    --text2: var(--figma-color-text-secondary, #6b6b6b);
+    --line: var(--figma-color-border, #e6e6e6);
+    --brand: var(--figma-color-bg-brand, #0d99ff);
+    --brand-hover: var(--figma-color-bg-brand-hover, #007be5);
+    --on-brand: var(--figma-color-text-onbrand, #fff);
+    --danger: var(--figma-color-text-danger, #dc3412);
+    --success: var(--figma-color-text-success, #14ae5c);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 12px/1.5 Inter, -apple-system, "Apple SD Gothic Neo", sans-serif; color: var(--text); background: var(--bg); word-break: keep-all; padding: 16px; display: flex; flex-direction: column; gap: 14px; height: 100vh; }
+  h1 { font-size: 13px; font-weight: 600; }
+  .sub { color: var(--text2); }
+  .label { font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--bg2); border-radius: 6px; padding: 2px; }
+  .seg label { text-align: center; padding: 6px 4px; border-radius: 5px; cursor: pointer; color: var(--text2); }
+  .seg input { display: none; }
+  .seg input:checked + span { color: var(--text); font-weight: 600; }
+  .seg label:has(input:checked) { background: var(--bg); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+  .seg label.disabled { opacity: 0.4; cursor: default; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; cursor: pointer; }
+  .opt input { margin-top: 2px; }
+  .opt small { display: block; color: var(--text2); }
+  .status { padding: 8px 10px; border-radius: 6px; background: var(--bg2); }
+  .status.err { color: var(--danger); }
+  .fonts { flex: 1; min-height: 80px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  th { position: sticky; top: 0; background: var(--bg); font-weight: 600; color: var(--text2); font-size: 11px; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+  .tag.swap { background: var(--brand); color: var(--on-brand); }
+  .tag.keep { background: var(--bg2); color: var(--text2); }
+  .tag.done { color: var(--success); }
+  .empty { padding: 16px; color: var(--text2); text-align: center; }
+  .actions { display: flex; gap: 8px; }
+  button { font: inherit; font-weight: 600; height: 32px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: pointer; }
+  button.primary { flex: 1; background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+  button.primary:hover:not(:disabled) { background: var(--brand-hover); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  .result { color: var(--text2); min-height: 18px; }
+</style>
+</head>
+<body>
+  <div>
+    <h1>SUIT Font Swap</h1>
+    <p class="sub">로고·포스터 제목 폰트만 남기고 모든 폰트를 SUIT Variable로 바꿔요. 굵기는 가장 가까운 SUIT 굵기로 맞춰요.</p>
+  </div>
+
+  <div>
+    <p class="label">범위</p>
+    <div class="seg">
+      <label id="sel-label"><input type="radio" name="scope" value="selection" /><span id="sel-text">선택 영역</span></label>
+      <label><input type="radio" name="scope" value="page" /><span>현재 페이지</span></label>
+      <label><input type="radio" name="scope" value="document" /><span>모든 페이지</span></label>
+    </div>
+  </div>
+
+  <div>
+    <label class="opt"><input type="checkbox" id="updateStyles" checked />
+      <span>로컬 텍스트 스타일도 변경<small>스타일 링크를 유지해요. 스타일은 파일 전체에 적용돼요.</small></span></label>
+    <label class="opt"><input type="checkbox" id="includeStyled" />
+      <span>라이브러리 스타일이 걸린 텍스트도 변경<small>해당 텍스트의 스타일 연결이 끊어져요.</small></span></label>
+  </div>
+
+  <div id="status" class="status">폰트를 확인하는 중…</div>
+
+  <div class="fonts" id="fonts"><p class="empty">검사 결과가 여기에 표시돼요.</p></div>
+
+  <p class="result" id="result"></p>
+
+  <div class="actions">
+    <button id="rescan">다시 검사</button>
+    <button id="swap" class="primary" disabled>SUIT로 바꾸기</button>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let selectionCount = 0;
+  let running = false;
+  let pendingSummary = "";
+
+  const scope = () => document.querySelector('input[name="scope"]:checked').value;
+  const options = () => ({ scope: scope(), updateStyles: $("updateStyles").checked, includeStyled: $("includeStyled").checked });
+  const send = (type) => { running = true; syncButtons(); parent.postMessage({ pluginMessage: { type, ...options() } }, "*"); };
+  const scan = () => { $("result").textContent = ""; send("scan"); };
+
+  function syncButtons(canSwap = false) {
+    $("rescan").disabled = running;
+    $("swap").disabled = running || !canSwap;
+  }
+
+  function setSelection(count) {
+    selectionCount = count;
+    $("sel-text").textContent = count ? `선택 영역 (${count})` : "선택 영역";
+    const input = document.querySelector('input[value="selection"]');
+    input.disabled = count === 0;
+    $("sel-label").classList.toggle("disabled", count === 0);
+    if (count === 0 && input.checked) document.querySelector('input[value="page"]').checked = true;
+  }
+
+  function renderReport(r, isScan) {
+    const st = $("status");
+    if (!r.target) {
+      st.className = "status err";
+      st.textContent = r.similar.length
+        ? `SUIT Variable을 찾지 못했어요. 비슷한 폰트: ${r.similar.join(", ")}`
+        : "SUIT Variable이 설치되어 있지 않아요. 폰트를 설치한 뒤 Figma를 다시 열어 주세요.";
+      $("fonts").innerHTML = '<p class="empty">바꿀 대상 폰트가 없어 검사하지 않았어요.</p>';
+      return false;
+    }
+    st.className = "status";
+    st.textContent = `대상: ${r.target} · 텍스트 ${r.textNodes}개` + (r.keepInstalled.length ? "" : " · 유지 폰트가 이 컴퓨터에 설치되어 있지 않아요(이름으로 구분해 유지)");
+
+    const rows = Object.entries(r.families).sort((a, b) => b[1].ranges - a[1].ranges);
+    if (!rows.length) {
+      $("fonts").innerHTML = '<p class="empty">범위 안에 텍스트가 없어요.</p>';
+    } else {
+      const label = { swap: "변경", keep: "유지", done: "SUIT" };
+      $("fonts").innerHTML = `<table><thead><tr><th>폰트</th><th class="n">구간</th><th>상태</th></tr></thead><tbody>${
+        rows.map(([f, v]) => `<tr><td>${escapeHtml(f)}</td><td class="n">${v.ranges}</td><td><span class="tag ${v.status}">${label[v.status]}</span></td></tr>`).join("")
+      }</tbody></table>`;
+    }
+
+    const notes = [];
+    if (r.stylesChanged) notes.push(`스타일 ${r.stylesChanged}개`);
+    if (r.skippedStyled) notes.push(`라이브러리 스타일 구간 ${r.skippedStyled}개 건너뜀`);
+    if (r.skippedVariable) notes.push(`폰트 변수 연결 ${r.skippedVariable}개 건너뜀`);
+    if (r.italicDropped) notes.push(`이탤릭 ${r.italicDropped}개는 정체로 바뀜`);
+    if (r.errors.length) notes.push(`오류 ${r.errors.length}개: ${r.errors.slice(0, 2).join(" / ")}`);
+    $("result").textContent = isScan
+      ? (r.rangesChanged || r.stylesChanged ? `바꿀 곳: 텍스트 구간 약 ${r.rangesChanged}개` + (notes.length ? ` · ${notes.join(" · ")}` : "") : "바꿀 곳이 없어요." + (notes.length ? ` ${notes.join(" · ")}` : ""))
+      : `완료: 텍스트 ${r.nodesChanged}개(구간 ${r.rangesChanged}개)` + (notes.length ? ` · ${notes.join(" · ")}` : "");
+    return isScan && (r.rangesChanged > 0 || r.stylesChanged > 0);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  }
+
+  onmessage = (event) => {
+    const msg = event.data.pluginMessage;
+    if (!msg) return;
+    if (msg.type === "init") {
+      setSelection(msg.selection);
+      document.querySelector(`input[value="${msg.scope}"]`).checked = true;
+      scan();
+    } else if (msg.type === "selection") {
+      setSelection(msg.count);
+      if (scope() === "selection" || msg.count === 0) { if (!running) scan(); }
+    } else if (msg.type === "progress") {
+      $("result").textContent = `확인 중… ${msg.done} / ${msg.total}`;
+    } else if (msg.type === "scan-result") {
+      running = false;
+      syncButtons(renderReport(msg.report, true));
+      // 변환 직후의 재검사라면 "완료" 요약을 그대로 보여준다
+      if (pendingSummary) { $("result").textContent = pendingSummary; pendingSummary = ""; }
+    } else if (msg.type === "swap-result") {
+      running = false;
+      renderReport(msg.report, false);
+      pendingSummary = $("result").textContent;
+      send("scan"); // 바뀐 상태로 표를 새로 고침
+    } else if (msg.type === "error") {
+      running = false;
+      $("status").className = "status err";
+      $("status").textContent = `오류: ${msg.message}`;
+      syncButtons(false);
+    }
+  };
+
+  document.querySelectorAll('input[name="scope"]').forEach((el) => el.addEventListener("change", scan));
+  $("updateStyles").addEventListener("change", scan);
+  $("includeStyled").addEventListener("change", scan);
+  $("rescan").addEventListener("click", scan);
+  $("swap").addEventListener("click", () => send("swap"));
+</script>
+</body>
+</html>

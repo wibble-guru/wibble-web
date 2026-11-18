@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "design/wibble-screens.src.html"
+        ],
+        "createdAt": "2026-11-17T12:36:33.670Z",
+        "reason": "Claude triage: hits are the .artboard page canvas; edge-touching children are full-bleed nav/footer bars and the mobile bottom tab bar, which sit at viewport edges by design"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "figma-plugins/suit-font-swap/ui.html"
+        ],
+        "createdAt": "2026-11-17T12:51:23.059Z",
+        "reason": "Claude triage: Figma plugin UI intentionally matches Figma's own Inter UI font so the panel blends with Figma chrome"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "design/wibble-horror.src.html"
+        ],
+        "createdAt": "2026-11-17T14:01:06.268Z",
+        "reason": "Claude triage: hits are the .artboard page canvas; full-bleed nav and the mobile bottom sheet sit at viewport edges by design"
+      }
+    ]
+  }
+}
