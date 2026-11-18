@@ -1,5 +1,5 @@
 export const SITE_NAME = "Wibble";
-export const SITE_DESCRIPTION = "가볍게 즐기는 1분 심리테스트";
+export const SITE_DESCRIPTION = "게임으로 즐기는 유형 테스트";
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
