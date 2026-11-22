@@ -1,11 +1,12 @@
 import "server-only";
 import { z } from "zod";
 import { ApiConfigError, ApiContractError, ApiRequestError, parse, request } from "@/lib/api/client";
-import { ApiCategorySchema, ApiTestPageSchema, ApiTestSchema } from "@/lib/api/wibble";
+import { notFound } from "next/navigation";
+import { ApiCategorySchema, ApiTestSchema } from "@/lib/api/wibble";
 
 /*
- * 어드민 API (docs/admin-api.md). 아직 백엔드에 없어서, 조회는 공개 API로 대신하고
- * 저장은 서버가 404/405/501을 주면 "아직 없음"으로 알려 준다.
+ * 어드민 API (docs/admin-api.md). 공개 API는 쓰지 않는다.
+ * 서버가 거부하거나(401/403) 없다고 하면(404) 어드민 화면은 404를 띄운다.
  */
 
 const ADMIN = "/api/admin";
@@ -15,8 +16,7 @@ export const TestStatusSchema = z.enum(["PUBLISHED", "DRAFT"]);
 export type TestStatus = z.infer<typeof TestStatusSchema>;
 
 export const AdminTestSchema = ApiTestSchema.extend({
-  /** 공개 API로 대신 읽으면 공개된 것만 오므로 PUBLISHED */
-  status: TestStatusSchema.default("PUBLISHED").catch("PUBLISHED"),
+  status: TestStatusSchema,
 });
 export type AdminTest = z.infer<typeof AdminTestSchema>;
 const AdminPageSchema = z.object({ items: z.array(AdminTestSchema) });
@@ -44,39 +44,30 @@ export type TestInput = {
 
 export type CategoryInput = { slug: string; name: string; displayOrder: number | null };
 
-/** 어드민 API가 백엔드에 아직 없다고 볼 응답 */
-const MISSING = new Set([404, 405, 501]);
+/** 이 응답이면 어드민 화면은 404: 토큰이 없거나 틀림(401/403), 없는 항목(404) */
+const NOT_FOUND = new Set([401, 403, 404]);
 
-/** 읽기 결과. source가 "public"이면 어드민 API가 없어 공개 API로 대신 읽은 것 */
-export type Loaded<T> = { data: T; source: "admin" | "public" };
-
-export async function listTests(): Promise<Loaded<AdminTest[]>> {
-  const res = await request(`${ADMIN}/psychology-tests`, { token: token(), query: { size: 100 } });
-  if (res.ok) return { data: (await parse(res, "admin tests", AdminPageSchema)).items, source: "admin" };
-  if (!MISSING.has(res.status)) throw new ApiRequestError(`어드민 테스트 목록: HTTP ${res.status}`, ADMIN, res.status);
-  const fallback = await request("/api/psychology-tests", { query: { sort: "latest", size: 100, page: 0 } } /* 서버 최대 100 */);
-  if (!fallback.ok) throw new ApiRequestError(`테스트 목록: HTTP ${fallback.status}`, "/api/psychology-tests", fallback.status);
-  const { items } = await parse(fallback, "tests", ApiTestPageSchema);
-  return { data: items.map((t) => AdminTestSchema.parse(t)), source: "public" };
+/**
+ * 어드민 API로 읽는다. 거부·없음이면 notFound()로 404 화면,
+ * 그 밖의 실패(5xx·연결 실패)는 오류를 던져 어드민 오류 화면을 띄운다.
+ */
+async function readAdmin<S extends z.ZodType>(path: string, schema: S, query?: Record<string, number>): Promise<z.infer<S>> {
+  const res = await request(`${ADMIN}${path}`, { token: token(), query });
+  if (NOT_FOUND.has(res.status)) notFound();
+  if (!res.ok) throw new ApiRequestError(`어드민 API ${path}: HTTP ${res.status}`, path, res.status);
+  return parse(res, `admin ${path}`, schema);
 }
 
-export async function getTest(slug: string): Promise<Loaded<AdminTest> | null> {
-  const res = await request(`${ADMIN}/psychology-tests/${slug}`, { token: token() });
-  if (res.ok) return { data: await parse(res, "admin test", AdminTestSchema), source: "admin" };
-  if (!MISSING.has(res.status)) throw new ApiRequestError(`어드민 테스트: HTTP ${res.status}`, ADMIN, res.status);
-  const fallback = await request(`/api/psychology-tests/${slug}`);
-  if (fallback.status === 404) return null;
-  if (!fallback.ok) throw new ApiRequestError(`테스트: HTTP ${fallback.status}`, slug, fallback.status);
-  return { data: await parse(fallback, "test", AdminTestSchema), source: "public" };
+export async function listTests() {
+  return (await readAdmin("/psychology-tests", AdminPageSchema, { size: 100 })).items; // 서버 최대 100
 }
 
-export async function listCategories(): Promise<Loaded<AdminCategory[]>> {
-  const res = await request(`${ADMIN}/psychology-categories`, { token: token() });
-  if (res.ok) return { data: await parse(res, "admin categories", ApiCategorySchema.array()), source: "admin" };
-  if (!MISSING.has(res.status)) throw new ApiRequestError(`어드민 카테고리: HTTP ${res.status}`, ADMIN, res.status);
-  const fallback = await request("/api/psychology-categories");
-  if (!fallback.ok) throw new ApiRequestError(`카테고리: HTTP ${fallback.status}`, "categories", fallback.status);
-  return { data: await parse(fallback, "categories", ApiCategorySchema.array()), source: "public" };
+export function getTest(slug: string) {
+  return readAdmin(`/psychology-tests/${slug}`, AdminTestSchema);
+}
+
+export function listCategories() {
+  return readAdmin("/psychology-categories", ApiCategorySchema.array());
 }
 
 /* ---------- 쓰기 ---------- */
@@ -87,9 +78,7 @@ async function write(method: "POST" | "PUT" | "DELETE", path: string, body?: unk
   try {
     const res = await request(`${ADMIN}${path}`, { method, body, token: token() });
     if (res.ok) return { ok: true };
-    if (MISSING.has(res.status)) {
-      return { ok: false, message: `백엔드에 어드민 API(${method} ${ADMIN}${path})가 아직 없어요. docs/admin-api.md 대로 추가되면 저장돼요. (HTTP ${res.status})` };
-    }
+    if (res.status === 404) return { ok: false, message: "없거나 이미 삭제된 항목이에요." };
     if (res.status === 401 || res.status === 403) {
       return { ok: false, message: `어드민 API가 권한을 거부했어요. WIBBLE_ADMIN_TOKEN을 확인해 주세요. (HTTP ${res.status})` };
     }

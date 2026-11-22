@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Badge, Notice, Panel, PublicSourceNotice, buttonClass } from "@/components/admin/ui";
+import { Badge, Notice, Panel, buttonClass } from "@/components/admin/ui";
 import { listTests, type AdminTest } from "@/lib/admin/api";
 import { requireAdmin } from "@/lib/admin/session";
 import { testPath } from "@/lib/site";
@@ -24,11 +24,10 @@ export default function AdminTestsPage({ searchParams }: PageProps<"/admin">) {
 
 async function TestList({ searchParams }: Pick<PageProps<"/admin">, "searchParams">) {
   await requireAdmin();
-  const [{ data: tests, source }, sp] = await Promise.all([listTests(), searchParams]);
+  const [tests, sp] = await Promise.all([listTests(), searchParams]);
   return (
     <>
       {sp.deleted && <Notice tone="success">삭제했어요.</Notice>}
-      {source === "public" && <PublicSourceNotice />}
       <Panel>
         {tests.length === 0 ? (
           <p className="py-10 text-center text-body-s text-ink-3">아직 테스트가 없어요.</p>

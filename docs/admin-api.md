@@ -1,15 +1,15 @@
-# 어드민 API 요청 명세 (백엔드 구현 필요)
+# 어드민 API
 
-사이트 어드민(`/admin`)이 테스트·카테고리를 등록·수정하려면 아래 API가 Wibble API 서버(`https://api.wibble.guru`)에 있어야 합니다.
-지금 Swagger에는 조회·기록 API만 있어서, 어드민은 **조회는 공개 API로 대신**하고 **저장하면 "아직 없음" 안내**를 보여줍니다.
-아래 경로가 생기면 프론트 수정 없이 바로 동작합니다 (호출 코드: [`src/lib/admin/api.ts`](../src/lib/admin/api.ts)).
+사이트 어드민(`/admin`)이 테스트·카테고리를 등록·수정할 때 쓰는 Wibble API 서버(`https://api.wibble.guru`)의 어드민 엔드포인트입니다.
+백엔드에 구현돼 있고 Swagger에도 있습니다 (호출 코드: [`src/lib/admin/api.ts`](../src/lib/admin/api.ts)).
+어드민은 공개 API를 쓰지 않습니다. 사이트 서버의 `WIBBLE_ADMIN_TOKEN`이 없거나 틀려 거부되면(401/403) 어드민 화면은 404를 띄웁니다.
 
 ## 공통
 
 - 인증: `Authorization: Bearer <WIBBLE_ADMIN_TOKEN>` — 사이트 서버만 호출합니다 (브라우저에서 직접 부르지 않음, CORS 불필요)
 - 토큰이 없거나 틀리면 `401`/`403`
 - 요청·응답 `application/json`. 오류는 지금처럼 `ProblemDetail` (`detail` 문구를 어드민에 그대로 보여줍니다)
-- 경로가 없으면 `404`/`405`/`501` → 어드민이 "아직 없음"으로 처리
+- 없는 항목은 `404` → 어드민도 404 화면
 
 ## 테스트
 

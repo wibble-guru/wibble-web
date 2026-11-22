@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ActionButton } from "@/components/admin/ActionButton";
 import { TestForm } from "@/components/admin/TestForm";
-import { Notice, Panel, PublicSourceNotice, buttonClass } from "@/components/admin/ui";
+import { Notice, Panel, buttonClass } from "@/components/admin/ui";
 import { refreshTest, removeTest } from "@/lib/admin/actions";
 import { getTest, listCategories } from "@/lib/admin/api";
 import { requireAdmin } from "@/lib/admin/session";
@@ -27,9 +27,7 @@ async function EditTest({ params, searchParams }: Props) {
   await requireAdmin();
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   if (!isValidId(slug)) notFound();
-  const [loaded, { data: categories }] = await Promise.all([getTest(slug), listCategories()]);
-  if (!loaded) notFound();
-  const { data: test, source } = loaded;
+  const [test, categories] = await Promise.all([getTest(slug), listCategories()]);
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -45,7 +43,6 @@ async function EditTest({ params, searchParams }: Props) {
         </div>
       </div>
       {sp.saved && <Notice tone="success">저장했어요. 사이트에도 바로 반영돼요.</Notice>}
-      {source === "public" && <PublicSourceNotice />}
       <TestForm key={test.slug} test={test} categories={categories} />
     </>
   );

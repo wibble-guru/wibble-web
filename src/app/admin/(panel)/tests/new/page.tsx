@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { TestForm } from "@/components/admin/TestForm";
-import { Panel, PublicSourceNotice } from "@/components/admin/ui";
+import { Panel } from "@/components/admin/ui";
 import { listCategories } from "@/lib/admin/api";
 import { requireAdmin } from "@/lib/admin/session";
 
@@ -24,10 +24,9 @@ export default function NewTestPage() {
 
 async function NewTestForm() {
   await requireAdmin();
-  const { data: categories, source } = await listCategories();
+  const categories = await listCategories();
   return (
     <>
-      {source === "public" && <PublicSourceNotice />}
       <TestForm test={null} categories={categories} />
     </>
   );
