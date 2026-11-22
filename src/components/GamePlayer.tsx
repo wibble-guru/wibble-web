@@ -12,7 +12,8 @@ import { MaximizeIcon, MinimizeIcon, RestartIcon } from "./icons";
 type Props = {
   slug: string;
   title: string;
-  gameUrl: string;
+  /** 아직 게임이 배포되지 않았으면 null → 준비 중 안내 */
+  gameUrl: string | null;
   theme: Theme;
   warnings: Warning[];
 };
@@ -22,6 +23,7 @@ type Props = {
  * - 모바일: 화면 높이를 채움 / 데스크톱: 16:9 + 처음부터·전체화면 버튼
  * - 공포 테스트는 시작 전 경고를 보여주고, 동의하면 이 탭(세션)에서는 다시 묻지 않음
  * - 게임이 보낸 결과(resultId)를 받아 결과 페이지로 이동
+ * - 화면이 열리면 방문, 게임을 띄우면(처음부터 포함) 실행을 Wibble API에 기록
  */
 export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
   const horror = theme === "horror";
@@ -29,10 +31,11 @@ export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
   const consent = useHorrorConsent(slug);
   const [runId, setRunId] = useState(0);
   const fullscreen = useFullscreen(stageRef);
+  const recordStart = usePlayTracking(slug);
 
   // 공포 테스트: 동의 전에는 게임을 불러오지 않는다. (null = 아직 확인 전 / 서버 렌더)
-  const canPlay = !horror || consent === true;
-  const askConsent = horror && consent === false;
+  const canPlay = gameUrl !== null && (!horror || consent === true);
+  const askConsent = gameUrl !== null && horror && consent === false;
 
   const restart = () => setRunId((n) => n + 1);
 
@@ -52,7 +55,14 @@ export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
             게임을 불러오는 중…
           </div>
         )}
-        {canPlay && <GameFrame key={runId} slug={slug} title={title} gameUrl={gameUrl} theme={theme} />}
+        {canPlay && <GameFrame key={runId} slug={slug} title={title} gameUrl={gameUrl} theme={theme} onStart={recordStart} />}
+        {gameUrl === null && (
+          <div className={cx("absolute inset-0 grid place-content-center gap-2 px-6 text-center", horror ? "text-mist-3" : "text-ink-2")}>
+            <span aria-hidden className="text-[48px] leading-none">🛠️</span>
+            <p className="text-subtitle">게임을 준비하고 있어요</p>
+            <p className="text-body-s">곧 플레이할 수 있어요. 조금만 기다려 주세요!</p>
+          </div>
+        )}
         {askConsent && <HorrorGate warnings={warnings} onAccept={() => grantHorrorConsent(slug)} />}
         {fullscreen.active && (
           <button type="button" onClick={fullscreen.exit}
@@ -85,9 +95,19 @@ export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
 
 /* ---------- iframe + postMessage 연동 ---------- */
 
-function GameFrame({ slug, title, gameUrl, theme }: Omit<Props, "warnings">) {
+type FrameProps = Omit<Props, "warnings" | "gameUrl"> & { gameUrl: string; onStart: () => void };
+
+function GameFrame({ slug, title, gameUrl, theme, onStart }: FrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const router = useRouter();
+  const started = useRef(false);
+
+  // 이 iframe이 뜬 것 = 게임 한 판 실행. (처음부터를 누르면 key가 바뀌어 새로 마운트된다)
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    onStart();
+  }, [onStart]);
 
   useEffect(() => {
     const gameOrigin = new URL(gameUrl, window.location.href).origin;
@@ -115,6 +135,45 @@ function GameFrame({ slug, title, gameUrl, theme }: Omit<Props, "warnings">) {
       className="absolute inset-0 size-full border-0"
     />
   );
+}
+
+/* ---------- 방문·실행 기록 (src/app/api/tests/[slug]/[event]/route.ts) ---------- */
+
+function postEvent(slug: string, event: "views" | "starts", body: Record<string, string>) {
+  return fetch(`/api/tests/${encodeURIComponent(slug)}/${event}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    keepalive: true,
+  })
+    .then((response) => response.ok)
+    .catch(() => false);
+}
+
+/**
+ * 화면이 열리면 방문(entryId)을 한 번 기록하고, 돌려준 함수가 불릴 때마다 실행(playId)을 기록한다.
+ * 실행은 방문 기록이 끝난 뒤에 보낸다 (서버가 entryId를 알아야 받아준다). 기록 실패는 화면에 영향을 주지 않는다.
+ */
+function usePlayTracking(slug: string) {
+  const visit = useRef<{ slug: string; entryId: string; recorded: Promise<boolean> } | null>(null);
+
+  const ensureVisit = useCallback(() => {
+    if (visit.current?.slug !== slug) {
+      const entryId = crypto.randomUUID();
+      visit.current = { slug, entryId, recorded: postEvent(slug, "views", { entryId }) };
+    }
+    return visit.current;
+  }, [slug]);
+
+  useEffect(() => {
+    ensureVisit();
+  }, [ensureVisit]);
+
+  return useCallback(() => {
+    const { entryId, recorded } = ensureVisit();
+    const playId = crypto.randomUUID();
+    void recorded.then((ok) => ok && postEvent(slug, "starts", { entryId, playId }));
+  }, [ensureVisit, slug]);
 }
 
 /* ---------- 공포 경고 ---------- */
