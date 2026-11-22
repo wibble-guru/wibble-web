@@ -73,8 +73,3 @@ src/
 - Figma: Wibble 화면·컴포넌트·공포 테마 예시
 - 토큰(색·둥글기·폰트)은 `src/app/globals.css`의 `@theme`에 Figma 스타일 가이드와 같은 값으로 정의
 - 폰트: SUIT Variable (`src/app/fonts`, SIL OFL)
-- 참고용 HTML 원본: `design/`
-
-## 기타
-
-- `figma-plugins/suit-font-swap/` — Gumi Romance를 제외한 폰트를 SUIT Variable로 바꾸는 Figma 플러그인
