@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ActionButton } from "@/components/admin/ActionButton";
 import { CategoryForm } from "@/components/admin/CategoryForm";
-import { Panel, PublicSourceNotice } from "@/components/admin/ui";
+import { Panel } from "@/components/admin/ui";
 import { removeCategory } from "@/lib/admin/actions";
 import { listCategories } from "@/lib/admin/api";
 import { requireAdmin } from "@/lib/admin/session";
@@ -22,10 +22,9 @@ export default function CategoriesPage() {
 
 async function Categories() {
   await requireAdmin();
-  const { data: categories, source } = await listCategories();
+  const categories = await listCategories();
   return (
     <>
-      {source === "public" && <PublicSourceNotice />}
       <Panel title="목록">
         <p className="text-caption text-ink-3">순서가 작을수록 사이트 카테고리 칩에서 앞에 와요. slug는 주소에 쓰여서 바꿀 수 없어요.</p>
         <ul className="flex flex-col gap-3">

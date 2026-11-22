@@ -58,13 +58,3 @@ export function Badge({ tone, children }: { tone: "on" | "off" | "warn"; childre
     </span>
   );
 }
-
-/** 어드민 API가 아직 없어 공개 API로 읽었을 때 */
-export function PublicSourceNotice() {
-  return (
-    <Notice tone="info">
-      백엔드에 어드민 API가 아직 없어 공개 API로 읽었어요. 공개된 항목만 보이고, 저장하면 &quot;아직 없음&quot; 안내가 나와요.
-      필요한 API는 <code className="font-bold">docs/admin-api.md</code>에 정리돼 있어요.
-    </Notice>
-  );
-}
