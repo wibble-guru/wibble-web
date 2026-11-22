@@ -29,6 +29,9 @@ pnpm dev
 | `REVALIDATE_SECRET` | ✓(운영) | 캐시 무효화 웹훅 인증값 |
 | `NEXT_PUBLIC_SITE_URL` | ✓(운영) | 배포 도메인 — 공유 링크·OG 이미지 절대 주소 |
 | `NEXT_PUBLIC_KAKAO_JS_KEY` | | 카카오 JavaScript 키 (Kakao Developers에 도메인 등록 필요) |
+| `ADMIN_PASSWORD` | | 어드민(`/admin`) 로그인 비밀번호. 비우면 어드민 꺼짐 |
+| `ADMIN_SESSION_SECRET` | | 어드민 로그인 쿠키 서명 키 (기본: 비밀번호에서 생성) |
+| `WIBBLE_ADMIN_TOKEN` | | Wibble API 어드민 엔드포인트 토큰 ([docs/admin-api.md](docs/admin-api.md)) |
 
 ## 화면
 
@@ -40,6 +43,7 @@ pnpm dev
 | `/t/[slug]` | 테스트 플레이 (모바일 전체 높이 / PC 16:9 · 처음부터 · 전체화면). 공포 테스트는 시작 전 경고 |
 | `/t/[slug]/result/[resultId]` | 결과 카드(공포 테마는 어두운 톤) · 공유 · 추천 |
 | `POST /api/revalidate` | 콘텐츠 변경 시 캐시 즉시 갱신 (docs/api.md) |
+| `/admin` | 어드민: 테스트 등록·수정(게임 주소·꾸밈 값·게임 미리보기), 카테고리 관리. 저장은 백엔드 어드민 API 필요 ([docs/admin-api.md](docs/admin-api.md)) |
 
 ## 구조
 
