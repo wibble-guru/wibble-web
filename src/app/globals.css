@@ -115,6 +115,11 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* 404는 내비·푸터 없는 단독 화면: /t/… 안에서 notFound()로 떠도 사이트 크롬을 숨긴다 */
+body:has([data-not-found]) [data-site-chrome] {
+  display: none;
+}
+
 @utility container-page {
   width: 100%;
   max-width: 1200px;

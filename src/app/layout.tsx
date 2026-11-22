@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { Footer } from "@/components/Chrome";
-import { PcNav } from "@/components/PcNav";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { titleFontVariables } from "./fonts";
 import "./globals.css";
@@ -31,11 +29,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className={`${suit.variable} ${titleFontVariables} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans">
-        <PcNav />
-        <div className="flex flex-1 flex-col">{children}</div>
-        <Footer />
-      </body>
+      <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>
   );
 }

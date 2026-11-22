@@ -50,8 +50,10 @@ src/
     client.ts      fetch + 인증 헤더 + 타임아웃 + 응답 검증, 오류 종류 구분
     queries.ts     페이지가 쓰는 데이터 함수 ("use cache" + cacheLife + cacheTag)
   lib/game-bridge.ts  iframe 게임 ↔ 사이트 postMessage 규약
-  app/(browse)/    홈·목록·검색 (모바일 상단바 + 하단 탭바)
-  app/t/           테스트·결과 화면
+  app/(site)/      PC 상단 내비 + 푸터가 붙는 일반 화면
+    (browse)/      홈·목록·검색 (모바일 상단바 + 하단 탭바)
+    t/             테스트·결과 화면
+  app/not-found.tsx 404 (내비·푸터 없이 단독 화면, Figma "07 404")
   components/
     GamePlayer.tsx 게임 iframe · 16:9 · 전체화면 · 처음부터 · 공포 경고
     TestBits.tsx   썸네일 · 카드 · 랭킹 행 · 배지
