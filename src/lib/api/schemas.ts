@@ -54,8 +54,8 @@ export const WarningSchema = z.object({
 });
 
 export const TestDetailSchema = TestSummarySchema.extend({
-  /** 따로 호스팅된 게임 주소. iframe으로 띄운다. */
-  gameUrl: z.url({ protocol: /^https?$/ }),
+  /** 따로 호스팅된 게임 주소. iframe으로 띄운다. 아직 배포 전이면 null → "준비 중" 화면 */
+  gameUrl: z.url({ protocol: /^https?$/ }).nullable(),
   durationMinutes: z.number().positive().nullish().catch(null),
   shareImageUrl: optionalUrl,
   /** 공포 테스트 시작 전 경고에 보여줄 항목 (예: 깜짝 놀라는 장면, 효과음) */

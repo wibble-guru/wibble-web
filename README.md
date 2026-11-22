@@ -29,6 +29,9 @@ pnpm dev
 | `REVALIDATE_SECRET` | ✓(운영) | 캐시 무효화 웹훅 인증값 |
 | `NEXT_PUBLIC_SITE_URL` | ✓(운영) | 배포 도메인 — 공유 링크·OG 이미지 절대 주소 |
 | `NEXT_PUBLIC_KAKAO_JS_KEY` | | 카카오 JavaScript 키 (Kakao Developers에 도메인 등록 필요) |
+| `ADMIN_PASSWORD` | | 어드민(`/admin`) 로그인 비밀번호. 비우면 어드민 꺼짐 |
+| `ADMIN_SESSION_SECRET` | | 어드민 로그인 쿠키 서명 키 (기본: 비밀번호에서 생성) |
+| `WIBBLE_ADMIN_TOKEN` | | Wibble API 어드민 엔드포인트 토큰 ([docs/admin-api.md](docs/admin-api.md)) |
 
 ## 화면
 
@@ -40,6 +43,7 @@ pnpm dev
 | `/t/[slug]` | 테스트 플레이 (모바일 전체 높이 / PC 16:9 · 처음부터 · 전체화면). 공포 테스트는 시작 전 경고 |
 | `/t/[slug]/result/[resultId]` | 결과 카드(공포 테마는 어두운 톤) · 공유 · 추천 |
 | `POST /api/revalidate` | 콘텐츠 변경 시 캐시 즉시 갱신 (docs/api.md) |
+| `/admin` | 어드민: 테스트 등록·수정(게임 주소·꾸밈 값·게임 미리보기), 카테고리 관리. 저장은 백엔드 어드민 API 필요 ([docs/admin-api.md](docs/admin-api.md)) |
 
 ## 구조
 
@@ -50,8 +54,10 @@ src/
     client.ts      fetch + 인증 헤더 + 타임아웃 + 응답 검증, 오류 종류 구분
     queries.ts     페이지가 쓰는 데이터 함수 ("use cache" + cacheLife + cacheTag)
   lib/game-bridge.ts  iframe 게임 ↔ 사이트 postMessage 규약
-  app/(browse)/    홈·목록·검색 (모바일 상단바 + 하단 탭바)
-  app/t/           테스트·결과 화면
+  app/(site)/      PC 상단 내비 + 푸터가 붙는 일반 화면
+    (browse)/      홈·목록·검색 (모바일 상단바 + 하단 탭바)
+    t/             테스트·결과 화면
+  app/not-found.tsx 404 (내비·푸터 없이 단독 화면, Figma "07 404")
   components/
     GamePlayer.tsx 게임 iframe · 16:9 · 전체화면 · 처음부터 · 공포 경고
     TestBits.tsx   썸네일 · 카드 · 랭킹 행 · 배지

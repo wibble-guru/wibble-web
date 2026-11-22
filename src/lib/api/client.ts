@@ -38,20 +38,34 @@ function buildUrl(path: string, query?: Record<string, QueryValue>) {
   return url;
 }
 
-async function request(path: string, query?: Record<string, QueryValue>) {
+type RequestOptions = {
+  query?: Record<string, QueryValue>;
+  method?: "GET" | "POST" | "PUT" | "DELETE";
+  body?: unknown;
+  /** 기본은 WIBBLE_API_TOKEN. 어드민 API는 WIBBLE_ADMIN_TOKEN을 넘긴다 */
+  token?: string;
+};
+
+export async function request(path: string, { query, method = "GET", body, token = process.env.WIBBLE_API_TOKEN }: RequestOptions = {}) {
   const url = buildUrl(path, query);
-  const headers: HeadersInit = { Accept: "application/json" };
-  if (process.env.WIBBLE_API_TOKEN) headers.Authorization = `Bearer ${process.env.WIBBLE_API_TOKEN}`;
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
   const timeout = Number(process.env.WIBBLE_API_TIMEOUT_MS) || 8000;
   try {
-    return await fetch(url, { headers, signal: AbortSignal.timeout(timeout) });
+    return await fetch(url, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(timeout),
+    });
   } catch (error) {
     const reason = error instanceof Error && error.name === "TimeoutError" ? `${timeout}ms 안에 응답이 없어요` : "연결하지 못했어요";
     throw new ApiRequestError(`API ${path}: ${reason}`, path);
   }
 }
 
-async function parse<S extends z.ZodType>(response: Response, path: string, schema: S): Promise<z.infer<S>> {
+export async function parse<S extends z.ZodType>(response: Response, path: string, schema: S): Promise<z.infer<S>> {
   let body: unknown;
   try {
     body = await response.json();
@@ -67,15 +81,21 @@ async function parse<S extends z.ZodType>(response: Response, path: string, sche
 
 /** GET 요청. 2xx가 아니면 오류를 던진다. */
 export async function apiGet<S extends z.ZodType>(path: string, schema: S, query?: Record<string, QueryValue>) {
-  const response = await request(path, query);
+  const response = await request(path, { query });
   if (!response.ok) throw new ApiRequestError(`API ${path}: HTTP ${response.status}`, path, response.status);
   return parse(response, path, schema);
 }
 
 /** GET 요청. 404면 null을 돌려준다 (없는 테스트/결과 → notFound 처리용). */
 export async function apiGetOrNull<S extends z.ZodType>(path: string, schema: S, query?: Record<string, QueryValue>) {
-  const response = await request(path, query);
+  const response = await request(path, { query });
   if (response.status === 404) return null;
   if (!response.ok) throw new ApiRequestError(`API ${path}: HTTP ${response.status}`, path, response.status);
   return parse(response, path, schema);
+}
+
+/** 응답 본문이 없는 POST (방문·실행 기록 등). 2xx가 아니면 오류를 던진다. */
+export async function apiPost(path: string, body: unknown) {
+  const response = await request(path, { method: "POST", body });
+  if (!response.ok) throw new ApiRequestError(`API ${path}: HTTP ${response.status}`, path, response.status);
 }

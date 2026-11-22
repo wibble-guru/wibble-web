@@ -53,7 +53,8 @@ async function ResultView({ params }: Pick<Props, "params">) {
   return (
     <>
       <MobileTitleBar title="테스트 결과" left={<Link href="/" aria-label="홈으로" className="icon-btn"><HomeIcon /></Link>} />
-      <main className="container-page flex flex-col gap-4 md:mt-10 md:grid md:grid-cols-[minmax(0,560px)_minmax(0,1fr)] md:items-start md:gap-10">
+      {/* 두 칸(결과 | 공유·추천)은 오른쪽 칸이 충분히 넓어지는 xl부터. 그 아래는 위아래로 쌓는다 */}
+      <main className="container-page flex flex-col gap-4 md:mt-10 md:gap-5 xl:grid xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)] xl:items-start xl:gap-10">
         <ResultCard test={test} result={result} />
         <div className="flex flex-col gap-4 md:gap-5">
           <section className="flex flex-col items-center gap-4 rounded-xl bg-surface p-6 md:items-start md:p-8">
@@ -69,10 +70,10 @@ async function ResultView({ params }: Pick<Props, "params">) {
             />
           </section>
           <div className="flex gap-3">
-            <Link href={testPath(test.slug)} className="grid h-[52px] flex-1 place-items-center rounded-lg bg-primary text-subtitle text-white hover:bg-brand-600 md:h-[60px] md:text-title-3">
+            <Link href={testPath(test.slug)} className="grid h-[52px] min-w-0 flex-1 place-items-center whitespace-nowrap rounded-lg bg-primary px-4 text-subtitle text-white hover:bg-brand-600 md:h-[60px] md:text-title-3">
               나도 테스트하기 · 다시하기
             </Link>
-            <Link href="/tests" className="hidden h-[60px] place-items-center rounded-lg bg-brand-50 px-6 text-title-3 text-brand-600 md:grid">
+            <Link href="/tests" className="hidden h-[60px] shrink-0 place-items-center whitespace-nowrap rounded-lg bg-brand-50 px-6 text-title-3 text-brand-600 md:grid">
               다른 테스트
             </Link>
           </div>
@@ -87,7 +88,7 @@ async function ResultView({ params }: Pick<Props, "params">) {
 
 function ResultSkeleton() {
   return (
-    <main className="container-page flex flex-col gap-4 pt-[64px] md:mt-10 md:grid md:grid-cols-[560px_1fr] md:gap-10 md:pt-0">
+    <main className="container-page flex flex-col gap-4 pt-[64px] md:mt-10 md:pt-0 xl:grid xl:grid-cols-[560px_1fr] xl:gap-10">
       <div className="h-[520px] animate-pulse rounded-xl bg-brand-50" />
     </main>
   );

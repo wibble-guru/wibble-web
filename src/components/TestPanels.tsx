@@ -22,10 +22,12 @@ export function TestInfo({ test }: { test: TestDetail }) {
         {horror && <HorrorBadge />}
       </div>
       {test.description && <p className="whitespace-pre-line text-body text-ink-2">{test.description}</p>}
-      <p className="flex items-center gap-1 text-label text-ink-3">
-        <PlayIcon />
-        {formatCount(test.playCount)}명 참여{test.durationMinutes ? ` · 약 ${test.durationMinutes}분` : ""}
-      </p>
+      {(test.playCount > 0 || test.durationMinutes) && (
+        <p className="flex items-center gap-1 text-label text-ink-3">
+          <PlayIcon />
+          {[test.playCount > 0 && `${formatCount(test.playCount)}명 참여`, test.durationMinutes && `약 ${test.durationMinutes}분`].filter(Boolean).join(" · ")}
+        </p>
+      )}
       {horror && <WarningChips warnings={test.warnings} />}
       <hr className="my-1 border-line" />
       <p className="text-label font-bold text-ink-2">친구에게 공유하기</p>

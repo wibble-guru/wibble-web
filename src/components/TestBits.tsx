@@ -45,7 +45,9 @@ export function WarningChips({ warnings }: { warnings: Warning[] }) {
   );
 }
 
+/** 참여 수. 서버가 아직 참여 수를 주지 않아(0) 그때는 숨긴다 */
 export function PlayCount({ count, className }: { count: number; className?: string }) {
+  if (count <= 0) return null;
   return (
     <span className={cx("inline-flex items-center gap-1 text-caption text-ink-3", className)}>
       <PlayIcon />

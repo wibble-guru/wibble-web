@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>편의점 시점 보정</title>
+<style>
+  :root {
+    --bg: #111214; --panel: #1b1c20; --line: #2c2e34; --text: #e8e8ea; --dim: #9a9ca3; --accent: #b5d334;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, "Apple SD Gothic Neo", "Pretendard", sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  .stage { position: relative; width: min(100%, calc((100vh - 32px) * 16 / 9)); margin: 0 auto; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; touch-action: none; cursor: grab; }
+  .stage.dragging { cursor: grabbing; }
+  .stage.portrait { aspect-ratio: 9 / 16; width: min(100%, calc((100vh - 32px) * 9 / 16)); }
+  canvas { display: block; width: 100%; height: 100%; }
+  .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%;
+         border: 0; background: rgba(0,0,0,.45); color: #fff; font-size: 20px; cursor: pointer; }
+  .nav:hover { background: rgba(0,0,0,.7); }
+  .nav:disabled { opacity: .25; cursor: default; }
+  #prev { left: 12px; } #next { right: 12px; }
+  .tag { position: absolute; left: 12px; top: 12px; padding: 2px 8px; border-radius: 4px; background: rgba(0,0,0,.5); font-size: 12px; color: var(--dim); }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px; margin-top: 16px;
+              padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  label { display: block; color: var(--dim); font-size: 12px; margin-bottom: 4px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .seg button { border: 1px solid var(--line); background: transparent; color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+  .seg button[aria-pressed=true] { background: var(--accent); color: #111; border-color: var(--accent); }
+  .val { color: var(--text); font-variant-numeric: tabular-nums; }
+  .note { color: var(--dim); font-size: 12px; margin-top: 12px; }
+  select, input[type=file] { color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; max-width: 100%; }
+</style>
+</head>
+<body>
+<main>
+  <div class="stage" id="stage">
+    <canvas id="c"></canvas>
+    <span class="tag" id="tag">정면</span>
+    <button class="nav" id="prev" aria-label="왼쪽 보기">◀</button>
+    <button class="nav" id="next" aria-label="오른쪽 보기">▶</button>
+  </div>
+
+  <div class="controls">
+    <div>
+      <label>표시 방식</label>
+      <div class="row seg" id="mode">
+        <button data-mode="0" aria-pressed="true">보정</button>
+        <button data-mode="1" aria-pressed="false">원본 크롭(원통형)</button>
+      </div>
+    </div>
+    <div>
+      <label>화면 비율</label>
+      <div class="row seg" id="aspect">
+        <button data-aspect="landscape" aria-pressed="true">16:9 가로</button>
+        <button data-aspect="portrait" aria-pressed="false">9:16 세로</button>
+      </div>
+    </div>
+    <div>
+      <label>가장자리 처리 <span class="val" id="dval"></span></label>
+      <input type="range" id="d" min="0" max="1" step="0.01" value="0">
+      <div class="note">0 = 원근(직선이 곧게, 가장자리가 위아래로 늘어남) · 1 = 파니니(가장자리 덜 늘어남, 세로선은 수직 유지)</div>
+    </div>
+    <div>
+      <label>확대 <span class="val" id="zval"></span></label>
+      <input type="range" id="zoom" min="0.7" max="1.6" step="0.01" value="1">
+    </div>
+    <div>
+      <label>시선 <span class="val" id="yval"></span></label>
+      <input type="range" id="yaw" min="-1" max="1" step="0.001" value="0">
+    </div>
+    <div>
+      <label>이미지</label>
+      <div class="row">
+        <select id="src">
+          <option value="../3d/renders/pano_color.png">3D 렌더 · 색</option>
+          <option value="../3d/renders/pano_guide.png">3D 렌더 · 가이드</option>
+          <option value="../3d/renders/pano_lines.png">3D 렌더 · 선화</option>
+        </select>
+        <input type="file" id="file" accept="image/*" aria-label="생성한 파노라마 불러오기">
+      </div>
+      <div class="note">AI로 생성한 파노라마도 넣을 수 있어요. 3D 렌더와 같은 240° 원통형 구도여야 맞게 보정돼요.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ---- 파노라마 규격 (3d/build_store.py 와 같아야 함)
+const PANO = {
+  uMin: -120 * Math.PI / 180,  // 가로 범위(경도)
+  uMax:  120 * Math.PI / 180,
+  vTop: 441 / 580,             // 위쪽 tan(고도)
+  vBot: 500 / 580,             // 아래쪽 tan(고도)
+};
+// 버튼으로 멈추는 시선(도). 화면 끝을 넘는 값은 갈 수 있는 끝까지로 맞춘다
+const VIEW_SETS = {
+  landscape: [{ name: '좌', deg: -180 }, { name: '정면', deg: 0 }, { name: '우', deg: 180 }],
+  // 세로 화면은 가로 화각이 좁아(약 49°) 다섯 칸으로 나눈다
+  portrait: [{ name: '창가', deg: -95 }, { name: '출입문', deg: -48 }, { name: '정면', deg: 0 },
+             { name: '화장실', deg: 62 }, { name: 'CCTV', deg: 180 }],
+};
+let aspect = 'landscape';
+function views() {
+  const ym = geom().yawMax;
+  return VIEW_SETS[aspect].map(v => ({ name: v.name, at: ym ? Math.max(-1, Math.min(1, v.deg * Math.PI / 180 / ym)) : 0 }));
+}
+function nearestView() {
+  return views().map((v, i) => [Math.abs(v.at - state.yawN), i]).sort((a, b) => a[0] - b[0])[0][1];
+}
+
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: true });
+
+const vs = `attribute vec2 p; void main(){ gl_Position = vec4(p, 0., 1.); }`;
+const fs = `
+precision highp float;
+uniform sampler2D tex;
+uniform vec2 res;
+uniform float f, cy, yaw, d, mode;
+uniform vec4 pano; // uMin, uMax, vTop, vBot
+void main(){
+  float x = (gl_FragCoord.x - res.x * 0.5) / f;
+  float y = (cy - (res.y - gl_FragCoord.y)) / f;
+  float lon, v;
+  if (mode < 0.5) {
+    // 파니니 역변환 (d = 0 이면 일반 원근 투영)
+    float k = x * x / ((d + 1.) * (d + 1.));
+    float dscr = k * k * d * d - (k + 1.) * (k * d * d - 1.);
+    float clon = (-k * d + sqrt(max(dscr, 0.))) / (k + 1.);
+    float S = (d + 1.) / (d + clon);
+    lon = atan(x, S * clon);
+    v = y / S;
+  } else {
+    lon = x; v = y;            // 원통형 그대로 자르기
+  }
+  lon += yaw;
+  float u = (lon - pano.x) / (pano.y - pano.x);
+  float t = (pano.z - v) / (pano.z + pano.w);
+  if (u < 0. || u > 1. || t < 0. || t > 1.) { gl_FragColor = vec4(.07, .07, .08, 1.); return; }
+  gl_FragColor = texture2D(tex, vec2(u, t));
+}`;
+
+function sh(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs));
+gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+gl.linkProgram(prog); gl.useProgram(prog);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+const U = n => gl.getUniformLocation(prog, n);
+const tex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, tex);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+const state = { mode: 0, d: 0, zoom: 1, yawN: 0, view: 1, ready: false };
+let anim = null;
+
+// 화면 가장자리(x)에 해당하는 경도
+function lonAt(x, d, mode) {
+  if (mode === 1) return x;
+  const k = x * x / ((d + 1) ** 2);
+  const dscr = k * k * d * d - (k + 1) * (k * d * d - 1);
+  const clon = (-k * d + Math.sqrt(Math.max(dscr, 0))) / (k + 1);
+  const S = (d + 1) / (d + clon);
+  return Math.atan2(x, S * clon);
+}
+function geom() {
+  const w = canvas.width, h = canvas.height;
+  const f = h / (PANO.vTop + PANO.vBot) * state.zoom;
+  const cy = h / 2 + (PANO.vTop - PANO.vBot) / 2 * f;   // 수평선 위치
+  const half = lonAt(w / 2 / f, state.d, state.mode);
+  const yawMax = Math.max(0, Math.min(PANO.uMax - half, -PANO.uMin - half));
+  return { w, h, f, cy, half, yawMax };
+}
+
+function draw() {
+  if (!state.ready) return;
+  const g = geom();
+  const yaw = state.yawN * g.yawMax;
+  gl.viewport(0, 0, g.w, g.h);
+  gl.uniform2f(U('res'), g.w, g.h);
+  gl.uniform1f(U('f'), g.f);
+  gl.uniform1f(U('cy'), g.cy);
+  gl.uniform1f(U('yaw'), yaw);
+  gl.uniform1f(U('d'), state.d);
+  gl.uniform1f(U('mode'), state.mode);
+  gl.uniform4f(U('pano'), PANO.uMin, PANO.uMax, PANO.vTop, PANO.vBot);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  const deg = r => Math.round(r * 180 / Math.PI);
+  document.getElementById('yval').textContent = `${deg(yaw)}° (화면 가로 ${deg(g.half * 2)}°)`;
+  document.getElementById('dval').textContent = state.d.toFixed(2);
+  document.getElementById('zval').textContent = state.zoom.toFixed(2) + '×';
+  document.getElementById('yaw').value = state.yawN;
+  const vs = views();
+  document.getElementById('tag').textContent = vs[nearestView()].name;
+  document.getElementById('prev').disabled = state.view === 0;
+  document.getElementById('next').disabled = state.view === vs.length - 1;
+}
+
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+  draw();
+}
+new ResizeObserver(resize).observe(canvas);
+
+function loadImage(url) {
+  const img = new Image();
+  img.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    state.ready = true; draw();
+  };
+  img.src = url;
+}
+
+// 좌/우 버튼: 부드럽게 돌리기
+function goTo(i) {
+  const vs = views();
+  state.view = Math.max(0, Math.min(vs.length - 1, i));
+  const from = state.yawN, to = vs[state.view].at, t0 = performance.now(), dur = 450;
+  cancelAnimationFrame(anim);
+  const step = now => {
+    const t = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - t, 3);
+    state.yawN = from + (to - from) * e; draw();
+    if (t < 1) anim = requestAnimationFrame(step);
+  };
+  anim = requestAnimationFrame(step);
+}
+document.getElementById('prev').onclick = () => goTo(state.view - 1);
+document.getElementById('next').onclick = () => goTo(state.view + 1);
+addEventListener('keydown', e => { if (e.key === 'ArrowLeft') goTo(state.view - 1); if (e.key === 'ArrowRight') goTo(state.view + 1); });
+
+// 드래그로 둘러보기
+const stage = document.getElementById('stage');
+let drag = null;
+stage.addEventListener('pointerdown', e => {
+  if (e.target.closest('button')) return;
+  cancelAnimationFrame(anim);
+  drag = { x: e.clientX, yaw: state.yawN }; stage.setPointerCapture(e.pointerId); stage.classList.add('dragging');
+});
+stage.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const g = geom(), dpr = canvas.width / canvas.getBoundingClientRect().width;
+  const dLon = (e.clientX - drag.x) * dpr / g.f;           // 대략 화면 중앙 기준
+  state.yawN = g.yawMax ? Math.max(-1, Math.min(1, drag.yaw - dLon / g.yawMax)) : 0; draw();
+});
+const endDrag = () => {
+  if (!drag) return; drag = null; stage.classList.remove('dragging');
+  state.view = nearestView();
+};
+stage.addEventListener('pointerup', endDrag); stage.addEventListener('pointercancel', endDrag);
+
+// 컨트롤
+document.querySelectorAll('#aspect button').forEach(b => b.onclick = () => {
+  aspect = b.dataset.aspect;
+  stage.classList.toggle('portrait', aspect === 'portrait');
+  requestAnimationFrame(() => { resize(); goTo(VIEW_SETS[aspect].findIndex(v => v.deg === 0)); });
+  document.querySelectorAll('#aspect button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  // ResizeObserver 가 캔버스 크기를 다시 맞추고 그린다
+});
+document.querySelectorAll('#mode button').forEach(b => b.onclick = () => {
+  state.mode = +b.dataset.mode;
+  document.querySelectorAll('#mode button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  draw();
+});
+document.getElementById('d').oninput = e => { state.d = +e.target.value; draw(); };
+document.getElementById('zoom').oninput = e => { state.zoom = +e.target.value; draw(); };
+document.getElementById('yaw').oninput = e => { cancelAnimationFrame(anim); state.yawN = +e.target.value; state.view = nearestView(); draw(); };
+document.getElementById('src').onchange = e => loadImage(e.target.value);
+document.getElementById('file').onchange = e => { const f = e.target.files[0]; if (f) loadImage(URL.createObjectURL(f)); };
+
+loadImage(document.getElementById('src').value);
+</script>
+</body>
+</html>
