@@ -1,0 +1,15 @@
+name: commit-convention
+
+# PR 제목과 커밋 첫 줄이 O2 커밋 규칙(type: subject)을 지키는지 검사한다.
+# 검사 로직은 wibble-guru/.github 의 공용 워크플로에 있다.
+# 브랜치 보호(Settings → Branches)에서 "check / check"를 필수로 지정하면 규칙을 어긴 PR은 머지할 수 없다.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    uses: wibble-guru/.github/.github/workflows/commit-convention.yml@main
