@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import type { Theme, Warning } from "@/lib/api/schemas";
 import { cx } from "@/lib/format";
 import { isGameMessage, type HostMessage } from "@/lib/game-bridge";
@@ -23,6 +23,7 @@ type Props = {
  * - 모바일: 화면 높이를 채움 / 데스크톱: 16:9 + 처음부터·전체화면 버튼
  * - 공포 테스트는 시작 전 경고를 보여주고, 동의하면 이 탭(세션)에서는 다시 묻지 않음
  * - 게임이 보낸 결과를 받아 결과 페이지로 이동 (서버에 저장하지 않고 이번 판의 playId + 쿼리로)
+ * - 결과를 보낸 판은 이 화면으로 돌아오면(다시하기·뒤로 가기) 새로 시작
  * - 화면이 열리면 방문, 게임을 띄우면(처음부터 포함) 실행을 Wibble API에 기록
  */
 export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
@@ -38,6 +39,19 @@ export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
   const askConsent = gameUrl !== null && horror && consent === false;
 
   const restart = () => setRunId((n) => n + 1);
+
+  // Next가 떠난 페이지를 <Activity>로 숨겨 두었다가 그대로 되살리므로, 결과를 보낸 iframe은
+  // "결과 페이지로 이동하는 중…"에 멈춘 채 돌아온다. 다시 보일 때(레이아웃 이펙트가 다시 붙을 때)
+  // 끝난 판이면 그리기 전에 새 판으로 바꾼다. 게임 도중에 떠났다 오면 진행 상황은 그대로 둔다.
+  const finished = useRef(false);
+  const markFinished = useCallback(() => {
+    finished.current = true;
+  }, []);
+  useLayoutEffect(() => {
+    if (!finished.current) return;
+    finished.current = false;
+    setRunId((n) => n + 1);
+  }, []);
 
   return (
     <div className="flex flex-col gap-3">
@@ -55,7 +69,7 @@ export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
             게임을 불러오는 중…
           </div>
         )}
-        {canPlay && <GameFrame key={runId} slug={slug} title={title} gameUrl={gameUrl} theme={theme} onStart={recordStart} />}
+        {canPlay && <GameFrame key={runId} slug={slug} title={title} gameUrl={gameUrl} theme={theme} onStart={recordStart} onResult={markFinished} />}
         {gameUrl === null && (
           <div className={cx("absolute inset-0 grid place-content-center gap-2 px-6 text-center", horror ? "text-mist-3" : "text-ink-2")}>
             <span aria-hidden className="text-[48px] leading-none">🛠️</span>
@@ -95,9 +109,9 @@ export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
 
 /* ---------- iframe + postMessage 연동 ---------- */
 
-type FrameProps = Omit<Props, "warnings" | "gameUrl"> & { gameUrl: string; onStart: () => string };
+type FrameProps = Omit<Props, "warnings" | "gameUrl"> & { gameUrl: string; onStart: () => string; onResult: () => void };
 
-function GameFrame({ slug, title, gameUrl, theme, onStart }: FrameProps) {
+function GameFrame({ slug, title, gameUrl, theme, onStart, onResult }: FrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const router = useRouter();
   const playId = useRef<string | null>(null);
@@ -120,12 +134,13 @@ function GameFrame({ slug, title, gameUrl, theme, onStart }: FrameProps) {
         frame.postMessage(init, gameOrigin);
       } else {
         const id = playId.current ?? crypto.randomUUID();
+        onResult();
         router.push(sharedResultPath(slug, id, event.data.resultId, event.data.result));
       }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [gameUrl, router, slug, theme]);
+  }, [gameUrl, onResult, router, slug, theme]);
 
   return (
     <iframe
