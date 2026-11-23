@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Re
 import type { Theme, Warning } from "@/lib/api/schemas";
 import { cx } from "@/lib/format";
 import { isGameMessage, type HostMessage } from "@/lib/game-bridge";
-import { resultPath } from "@/lib/site";
+import { sharedResultPath } from "@/lib/shared-result";
 import { MaximizeIcon, MinimizeIcon, RestartIcon } from "./icons";
 
 type Props = {
@@ -22,7 +22,7 @@ type Props = {
  * 따로 호스팅된 게임을 iframe으로 띄우는 플레이어.
  * - 모바일: 화면 높이를 채움 / 데스크톱: 16:9 + 처음부터·전체화면 버튼
  * - 공포 테스트는 시작 전 경고를 보여주고, 동의하면 이 탭(세션)에서는 다시 묻지 않음
- * - 게임이 보낸 결과(resultId)를 받아 결과 페이지로 이동
+ * - 게임이 보낸 결과를 받아 결과 페이지로 이동 (서버에 저장하지 않고 이번 판의 playId + 쿼리로)
  * - 화면이 열리면 방문, 게임을 띄우면(처음부터 포함) 실행을 Wibble API에 기록
  */
 export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
@@ -95,18 +95,18 @@ export function GamePlayer({ slug, title, gameUrl, theme, warnings }: Props) {
 
 /* ---------- iframe + postMessage 연동 ---------- */
 
-type FrameProps = Omit<Props, "warnings" | "gameUrl"> & { gameUrl: string; onStart: () => void };
+type FrameProps = Omit<Props, "warnings" | "gameUrl"> & { gameUrl: string; onStart: () => string };
 
 function GameFrame({ slug, title, gameUrl, theme, onStart }: FrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const router = useRouter();
-  const started = useRef(false);
+  const playId = useRef<string | null>(null);
 
   // 이 iframe이 뜬 것 = 게임 한 판 실행. (처음부터를 누르면 key가 바뀌어 새로 마운트된다)
+  // 실행 기록에 쓴 playId가 이 판의 결과 공유 주소가 된다.
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    onStart();
+    if (playId.current) return;
+    playId.current = onStart();
   }, [onStart]);
 
   useEffect(() => {
@@ -119,7 +119,8 @@ function GameFrame({ slug, title, gameUrl, theme, onStart }: FrameProps) {
         const init: HostMessage = { source: "psytest-host", type: "init", slug, theme };
         frame.postMessage(init, gameOrigin);
       } else {
-        router.push(resultPath(slug, event.data.resultId));
+        const id = playId.current ?? crypto.randomUUID();
+        router.push(sharedResultPath(slug, id, event.data.resultId, event.data.result));
       }
     }
     window.addEventListener("message", onMessage);
@@ -151,7 +152,7 @@ function postEvent(slug: string, event: "views" | "starts", body: Record<string,
 }
 
 /**
- * 화면이 열리면 방문(entryId)을 한 번 기록하고, 돌려준 함수가 불릴 때마다 실행(playId)을 기록한다.
+ * 화면이 열리면 방문(entryId)을 한 번 기록하고, 돌려준 함수가 불릴 때마다 실행(playId)을 기록한 뒤 playId를 돌려준다.
  * 실행은 방문 기록이 끝난 뒤에 보낸다 (서버가 entryId를 알아야 받아준다). 기록 실패는 화면에 영향을 주지 않는다.
  */
 function usePlayTracking(slug: string) {
@@ -173,6 +174,7 @@ function usePlayTracking(slug: string) {
     const { entryId, recorded } = ensureVisit();
     const playId = crypto.randomUUID();
     void recorded.then((ok) => ok && postEvent(slug, "starts", { entryId, playId }));
+    return playId;
   }, [ensureVisit, slug]);
 }
 

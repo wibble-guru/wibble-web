@@ -28,7 +28,7 @@
 |---|---|
 | 검색 | 최신 목록 100개를 받아 제목·설명·카테고리 이름으로 거름 |
 | 추천 ("이런 테스트는 어때요?") | 최신 목록에서 같은 카테고리를 먼저, 현재 테스트 제외 |
-| 결과 페이지 `/t/{slug}/result/{id}` | 결과 조회 API가 없어 404. 지금 게임들은 결과를 게임 안에서 보여줌 |
+| 결과 페이지 `/t/{slug}/result/{playId}?r=…` | 결과를 서버에 저장하지 않음. 게임이 보낸 결과 내용을 쿼리에 싣고, 경로에는 이번 판의 `playId`(`starts`에 보낸 값)만 넣음 — 아래 "게임 연동" |
 | 홈 배너(featured) | 최신순 5개 |
 
 ## 서버 응답 → 화면 값
@@ -65,15 +65,41 @@ Content-Type: application/json
 
 ## 게임 연동 (iframe)
 
-게임은 `gameUrl`에서 따로 호스팅됩니다. 결과를 사이트 결과 페이지로 넘기려면 `postMessage`로 알려줍니다 (지금 게임들은 결과를 게임 안에서 보여주므로 쓰지 않음) ([`src/lib/game-bridge.ts`](../src/lib/game-bridge.ts)).
+게임은 `gameUrl`에서 따로 호스팅됩니다. 결과를 사이트 결과 페이지로 넘기려면 `postMessage`로 알려줍니다 ([`src/lib/game-bridge.ts`](../src/lib/game-bridge.ts)).
 
 | 방향 | 메시지 |
 |---|---|
 | 게임 → 사이트 | `{ source: "psytest-game", type: "ready" }` — `init`을 받을 때까지 300ms마다 반복 |
 | 사이트 → 게임 | `{ source: "psytest-host", type: "init", slug, theme }` — 이 메시지의 `event.origin`이 사이트 주소 |
-| 게임 → 사이트 | `{ source: "psytest-game", type: "result", resultId }` — `init`에서 받은 origin으로만 전송 |
+| 게임 → 사이트 | `{ source: "psytest-game", type: "result", resultId, result? }` — `init`에서 받은 origin으로만 전송 |
 
-사이트는 `gameUrl`과 같은 origin에서, 해당 iframe이 보낸 메시지만 받습니다. `result`를 받으면 `/t/{slug}/result/{resultId}`로 이동합니다.
+사이트는 `gameUrl`과 같은 origin에서, 해당 iframe이 보낸 메시지만 받습니다.
+
+결과는 서버에 저장하지 않습니다. `result`를 받으면 이번 판의 `playId`(실행 기록 `starts`에 보낸 UUID, "처음부터"마다 새로 발급)를 공유용 id로 써서 아래 주소로 이동합니다. 결과 페이지는 이 쿼리만으로 그려집니다.
+
+```
+/t/{slug}/result/{playId}?r={resultId}&title=…&summary=…&tag=…&tag=…
+```
+
+`result`에 담을 수 있는 값 (모두 선택, [`src/lib/shared-result.ts`](../src/lib/shared-result.ts)):
+
+| 필드 | 쿼리 | 최대 길이 | 화면 |
+|---|---|---|---|
+| `title` | `title` | 40자 | 결과 제목. 없으면 `resultId`를 그대로 보여 줌 |
+| `summary` | `summary` | 200자 | 설명 (줄바꿈 유지) |
+| `intro` | `intro` | 40자 | 제목 위 문구. 없으면 "{테스트 제목} 결과" |
+| `emoji` | `emoji` | 8자 | 결과 그림 자리 |
+| `hashtags` | `tag` (여러 번) | 20자 × 6개 | 해시태그 (`#`은 떼어 냄) |
+| `goodMatch` / `badMatch` `{ label, emoji? }` | `good`·`goodEmoji` / `bad`·`badEmoji` | 20자 | 잘 맞는 / 안 맞는 유형 |
+
+```js
+parent.postMessage({
+  source: "psytest-game", type: "result", resultId: "court-judge",
+  result: { title: "공정한 재판장", summary: "증거부터 차근차근…", emoji: "⚖️", hashtags: ["신중함", "원칙주의"] },
+}, hostOrigin);
+```
+
+쿼리는 누구나 고칠 수 있으므로 길이를 넘는 값은 잘리고, 형식이 틀린 항목은 버려집니다. 이미지 주소는 받지 않습니다 (공유 이미지는 테스트의 공유 이미지·썸네일). 결과 페이지는 검색에 올리지 않습니다(`noindex`).
 
 게임 서버 설정:
 - iframe 허용: `Content-Security-Policy: frame-ancestors https://<사이트 도메인>` (`X-Frame-Options`는 빼 주세요)

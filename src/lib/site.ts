@@ -9,7 +9,8 @@ export function absoluteUrl(pathOrUrl: string) {
 }
 
 export const testPath = (slug: string) => `/t/${slug}`;
-export const resultPath = (slug: string, resultId: string) => `/t/${slug}/result/${encodeURIComponent(resultId)}`;
+/** 결과 페이지 경로. playId는 한 판마다 새로 만드는 공유용 id (쿼리는 src/lib/shared-result.ts) */
+export const resultPath = (slug: string, playId: string) => `/t/${slug}/result/${encodeURIComponent(playId)}`;
 
 export const SITE_TAGLINE = "게임으로 즐기는 심리테스트";
 export const CONTACT_EMAIL = "contact@wibble.guru";
