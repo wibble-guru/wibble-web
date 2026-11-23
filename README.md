@@ -41,7 +41,7 @@ pnpm dev
 | `/tests?category=&sort=new\|popular` | 전체/인기 테스트 목록 |
 | `/search?q=` | 검색 |
 | `/t/[slug]` | 테스트 플레이 (모바일 전체 높이 / PC 16:9 · 처음부터 · 전체화면). 공포 테스트는 시작 전 경고 |
-| `/t/[slug]/result/[resultId]` | 결과 카드(공포 테마는 어두운 톤) · 공유 · 추천 |
+| `/t/[slug]/result/[playId]?r=…` | 결과 카드(공포 테마는 어두운 톤) · 공유 · 추천. 결과 내용은 쿼리로 받음 (서버 저장 없음) |
 | `POST /api/revalidate` | 콘텐츠 변경 시 캐시 즉시 갱신 (docs/api.md) |
 | `/admin` | 어드민: 테스트 등록·수정(게임 주소·꾸밈 값·게임 미리보기), 카테고리 관리. 저장은 백엔드 어드민 API 필요 ([docs/admin-api.md](docs/admin-api.md)) |
 
@@ -54,6 +54,7 @@ src/
     client.ts      fetch + 인증 헤더 + 타임아웃 + 응답 검증, 오류 종류 구분
     queries.ts     페이지가 쓰는 데이터 함수 ("use cache" + cacheLife + cacheTag)
   lib/game-bridge.ts  iframe 게임 ↔ 사이트 postMessage 규약
+  lib/shared-result.ts 게임 결과 ↔ 결과 페이지 쿼리 변환
   app/(site)/      PC 상단 내비 + 푸터가 붙는 일반 화면
     (browse)/      홈·목록·검색 (모바일 상단바 + 하단 탭바)
     t/             테스트·결과 화면

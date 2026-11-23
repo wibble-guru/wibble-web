@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Theme } from "@/lib/api/schemas";
 import { cx } from "@/lib/format";
 import { isGameMessage, type HostMessage } from "@/lib/game-bridge";
+import { sharedResultPath } from "@/lib/shared-result";
 import { buttonClass } from "./ui";
 
 type Device = "mobile" | "pc";
@@ -41,8 +42,9 @@ export function GamePreview({ gameUrl, slug, theme }: { gameUrl: string; slug: s
         if (!greeted) setLog((l) => [...l, "ready 받음 → init 보냄"]);
         greeted = true;
       } else {
-        const id = event.data.resultId;
-        setLog((l) => [...l, `결과: ${id} (사이트라면 /t/${slug}/result/${id}로 이동)`]);
+        const { resultId, result } = event.data;
+        const path = decodeURIComponent(sharedResultPath(slug, "{playId}", resultId, result).replace(/\+/g, " "));
+        setLog((l) => [...l, `결과: ${resultId} (사이트라면 ${path}로 이동)`]);
       }
     }
     window.addEventListener("message", onMessage);

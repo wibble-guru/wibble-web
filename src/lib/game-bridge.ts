@@ -6,11 +6,14 @@ import type { Theme } from "@/lib/api/schemas";
  *
  *   game -> host  { source: "psytest-game", type: "ready" }            (init을 받을 때까지 반복 전송)
  *   host -> game  { source: "psytest-host", type: "init", slug, theme }
- *   game -> host  { source: "psytest-game", type: "result", resultId } (init에서 받은 origin으로만 전송)
+ *   game -> host  { source: "psytest-game", type: "result", resultId, result? } (init에서 받은 origin으로만 전송)
+ *
+ * result는 결과 카드 내용(제목·설명·해시태그 …, src/lib/shared-result.ts의 ResultContent). 서버에 저장하지 않고
+ * 결과 페이지 주소의 쿼리로 넘긴다. 형식이 틀린 값은 그 항목만 버린다.
  */
 export type GameMessage =
   | { source: "psytest-game"; type: "ready" }
-  | { source: "psytest-game"; type: "result"; resultId: string };
+  | { source: "psytest-game"; type: "result"; resultId: string; result?: unknown };
 
 export type HostMessage = { source: "psytest-host"; type: "init"; slug: string; theme: Theme };
 

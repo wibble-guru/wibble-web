@@ -3,7 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { connection } from "next/server";
 import { isValidId } from "@/lib/ids";
 import { apiGet, apiGetOrNull } from "./client";
-import type { TestResult, TestSummary } from "./schemas";
+import type { TestSummary } from "./schemas";
 import { ApiCategorySchema, ApiTestPageSchema, ApiTestSchema, toCategory, toTestDetail, toTestSummary } from "./wibble";
 
 /*
@@ -112,16 +112,6 @@ async function cachedGetTest(slug: string) {
   if (!isValidId(slug)) return null;
   const test = await apiGetOrNull(`${TESTS}/${slug}`, ApiTestSchema);
   return test && toTestDetail(test);
-}
-
-/**
- * 서버에 결과 조회 API가 아직 없다. 지금 게임들은 결과를 게임 안에서 보여주므로
- * 결과 페이지(/t/{slug}/result/{id})는 찾을 수 없음으로 처리한다.
- */
-export async function getResult(slug: string, resultId: string): Promise<TestResult | null> {
-  void slug;
-  void resultId;
-  return null;
 }
 
 export async function getRecommendations(slug: string, limit = 4) {
