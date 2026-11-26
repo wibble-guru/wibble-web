@@ -8,7 +8,7 @@ import { SlideRail } from "./SlideRail";
 import { HorrorBadge, RAIL_THUMB_CENTER, RankRow, TestCard, TestThumb, WarningChips, isHorror } from "./TestBits";
 
 export function shareImageFor(test: TestDetail, override?: string | null) {
-  return absoluteUrl(override ?? test.shareImageUrl ?? test.thumbnailUrl ?? "/opengraph-image");
+  return absoluteUrl(override ?? test.shareImageUrl ?? test.thumbnailUrl ?? "/opengraph-image.jpg");
 }
 
 /** 테스트 소개 + 공유 */
